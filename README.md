@@ -12,6 +12,9 @@ AstrBot 插件 —— **自动学习对话并保存为可复用的 Skill**
 - Skill 管理：列出、查看、删除、导出已保存的 Skills
 - AstrBot 兼容导出：一键导出为 zip，可直接上传到 AstrBot 管理面板的 Skills 页面
 - 四种 Skill 类型支持：工作流 (workflow)、知识 (knowledge)、工具 (tool)、提示词 (prompt)
+- 短别名指令：`/sl`、`/ss`、`/sc`、`/st`、`/skills`，手机端输入更快
+- 群聊隔离与防刷屏：群聊和私聊学习会话独立，关键节点才提示
+- 管理员权限控制：删除 Skill 等敏感操作仅限管理员
 
 ## 安装
 
@@ -41,14 +44,15 @@ plugin i https://github.com/counhopig/astrbot_plugin_skill_learner
 
 | 命令 | 别名 | 说明 |
 |------|------|------|
-| `/skill_learn` | `/学习` | 进入学习模式，开始记录内容 |
-| `/skill_save <名称>` | - | 保存学习内容为 Skill |
-| `/skill_cancel` | `/取消学习` | 取消当前学习会话 |
-| `/skill_list` | `/技能列表` | 列出所有已保存的 Skills |
+| `/skill_learn` | `/学习` `/sl` | 进入学习模式，开始记录内容 |
+| `/skill_save [名称]` | `/ss` | 保存学习内容为 Skill（名称可选，AI 自动生成） |
+| `/skill_cancel` | `/取消学习` `/sc` | 取消当前学习会话 |
+| `/skill_status` | `/学习状态` `/st` | 查看当前学习进度 |
+| `/skill_list` | `/技能列表` `/skills` | 列出所有已保存的 Skills |
 | `/skill_view <名称>` | - | 查看指定 Skill 的内容 |
-| `/skill_delete <名称>` | - | 删除指定 Skill |
+| `/skill_delete <名称>` | - | 删除指定 Skill（仅管理员） |
 | `/skill_export <名称>` | - | 导出为 AstrBot 兼容的 zip |
-| `/skill_help` | `/技能帮助` | 显示帮助信息 |
+| `/skill_help` | `/技能帮助` `/sh` | 显示帮助信息 |
 
 ### 配置项
 
