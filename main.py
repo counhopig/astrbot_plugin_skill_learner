@@ -66,78 +66,165 @@ class SkillLearnerPlugin(Star):
     # 命令接口
     # ============================================================
 
-    @filter.command("skill_learn", alias={"学习", "开始学习"})
+    # ========== 权限检查 ==========
+
+    def _is_admin(self, event: AstrMessageEvent) -> bool:
+        """检查发送者是否为管理员"""
+        try:
+            sender_id = event.get_sender_id()
+            # 优先检查是否为 AstrBot 平台管理员
+            if hasattr(event, "is_admin") and event.is_admin():
+                return True
+            # 通过 context 检查权限
+            if self.context and hasattr(self.context, "get_group_admin"):
+                admins = self.context.get_group_admin(event.unified_msg_origin)
+                if admins and sender_id in admins:
+                    return True
+        except Exception:
+            pass
+        return False
+
+    @staticmethod
+    def _get_group_id(event: AstrMessageEvent) -> str:
+        """安全获取群聊ID，私聊返回空字符串"""
+        try:
+            if hasattr(event, "get_group_id"):
+                return event.get_group_id() or ""
+        except Exception:
+            pass
+        return ""
+
+    # ========== 学习命令 ==========
+
+    @filter.command("skill_learn", alias={"学习", "开始学习", "sl"})
     async def skill_learn(self, event: AstrMessageEvent):
         """进入学习模式，开始记录内容"""
-        result = await self.cmd.cmd_learn(event, [])
+        group_id = self._get_group_id(event)
+        result = await self.cmd.cmd_learn(event, [], group_id)
         yield event.plain_result(result)
 
-    @filter.command("skill_cancel", alias={"取消学习", "取消记录"})
+    @filter.command("skill_cancel", alias={"取消学习", "取消记录", "sc"})
     async def skill_cancel(self, event: AstrMessageEvent):
         """取消当前学习会话"""
-        result = await self.cmd.cmd_cancel(event)
+        group_id = self._get_group_id(event)
+        result = await self.cmd.cmd_cancel(event, group_id)
         yield event.plain_result(result)
 
-    @filter.command("skill_save")
+    @filter.command("skill_status", alias={"学习状态", "st"})
+    async def skill_status(self, event: AstrMessageEvent):
+        """查看当前学习状态"""
+        user_id = event.get_sender_id()
+        group_id = self._get_group_id(event)
+        session = self.storage.get_active_session(user_id, group_id)
+        result = await self.cmd.cmd_status(event, session)
+        yield event.plain_result(result)
+
+    @filter.command("skill_save", alias={"保存技能", "ss"})
     async def skill_save(self, event: AstrMessageEvent):
         """保存学习内容为 Skill（需要指定名称）"""
         message_str = event.message_str.strip()
         parts = message_str.split(maxsplit=1)
         name = parts[1].strip() if len(parts) > 1 else None
-        
+
         user_id = event.get_sender_id()
-        session = self.storage.get_active_session(user_id)
-        
+        group_id = self._get_group_id(event)
+        session = self.storage.get_active_session(user_id, group_id)
+
         if not session or session.state != LearningState.LISTENING.value:
-            yield event.plain_result("当前没有进行中的学习会话。请先发送 `/skill_learn` 开始学习。")
+            yield event.plain_result(
+                "📭 当前没有进行中的学习会话。\n"
+                "发送 `/skill_learn` 或说「学习一下」开始学习吧~"
+            )
             return
-        
+
         if not session.messages:
-            yield event.plain_result("学习会话中还没有内容。请发送一些内容后再保存。")
+            yield event.plain_result(
+                "📝 学习会话中还没有内容呢。\n"
+                "请发送一些你想让我学习的内容后再保存~"
+            )
             return
-        
+
+        # 如果没有提供名称，主动引导
+        if not name and not session.proposed_name:
+            yield event.plain_result(
+                "🤔 请为这个 Skill 取个名字吧~\n"
+                "例如：`/skill_save 周报模板` 或 `/skill_save python-exception`\n"
+                "\n💡 如果不确定，也可以直接发送 `/skill_save`，我会根据内容自动生成一个名字。"
+            )
+            # 允许空名称保存：进入 CONFIRMING，后续由 AI 命名
+
         # 标记为确认中
         session.state = LearningState.CONFIRMING.value
         if name:
             session.proposed_name = name
         self.storage.update_session(session)
-        
+
         yield event.plain_result(
-            f"正在分析 {len(session.messages)} 条消息并生成 Skill，请稍等..."
+            f"🧠 正在调用 AI 分析你刚才教的 {len(session.messages)} 条内容，"
+            f"大约需要 10-30 秒，请稍等..."
         )
-        
+
         # 调用 LLM 生成 Skill
         try:
             skill = await self._generate_skill(event, session)
             if skill:
+                # 检查是否首次保存
+                existing_count = len(self.storage.list_skills())
+                is_first = existing_count == 0
+
                 # 保存到插件目录（备份）
                 self.storage.save_skill(skill)
                 # 根据配置自动部署到 AstrBot skills 目录
                 deployed_path = None
                 if self.auto_deploy:
                     deployed_path = self.storage.deploy_to_astrbot(skill)
-                self.storage.end_session(user_id)
+                self.storage.end_session(user_id, group_id)
 
-                msg = (
-                    f"Skill 已保存！"
-                    f"\n名称: {skill.display_name or skill.name}"
-                    f"\n类型: {skill.skill_type}"
-                    f"\n描述: {skill.description}"
-                )
+                if is_first:
+                    msg = (
+                        f"🎉 **恭喜！你创建了第一个 Skill！**\n"
+                        f"\n名称: {skill.display_name or skill.name}"
+                        f"\n类型: {skill.skill_type}"
+                        f"\n描述: {skill.description}"
+                    )
+                else:
+                    msg = (
+                        f"✅ Skill 已保存！"
+                        f"\n名称: {skill.display_name or skill.name}"
+                        f"\n类型: {skill.skill_type}"
+                        f"\n描述: {skill.description}"
+                    )
+
                 if self.auto_deploy:
                     if deployed_path:
-                        msg += f"\n\n已自动部署到 AstrBot，现在可以在 Agent 中直接使用了。"
+                        msg += (
+                            f"\n\n🚀 已自动部署到 AstrBot，"
+                            f"现在可以在 Agent 中直接使用了！"
+                        )
                     else:
-                        msg += f"\n\n已保存到插件目录，但自动部署失败（可能无写入权限）。"
-                msg += f"\n使用 `/skill_view {skill.name}` 查看完整内容。"
+                        msg += (
+                            f"\n\n⚠️ 已保存到插件目录，但自动部署失败"
+                            f"（可能无写入权限）。"
+                        )
+
+                msg += (
+                    f"\n\n💡 试试对我说「使用 {skill.display_name or skill.name}」"
+                    f"来测试效果，或发送 `/skill_view {skill.name}` 查看完整内容。"
+                )
                 yield event.plain_result(msg)
             else:
-                yield event.plain_result("生成 Skill 失败，请稍后重试。")
+                yield event.plain_result(
+                    "⚠️ 生成 Skill 失败了...\n"
+                    "可能是 AI 服务暂时不可用，请稍后再试。"
+                )
         except Exception as e:
             logger.error(f"[SkillLearner] 生成 Skill 失败: {e}")
-            yield event.plain_result(f"生成 Skill 时出错: {e}")
+            yield event.plain_result(
+                "😵 生成 Skill 时遇到了一点问题...\n"
+                "请检查网络连接后重试，或联系管理员查看日志。"
+            )
 
-    @filter.command("skill_list", alias={"技能列表", "skill列表"})
+    @filter.command("skill_list", alias={"技能列表", "skill列表", "skills"})
     async def skill_list(self, event: AstrMessageEvent):
         """列出所有已保存的 Skills"""
         result = await self.cmd.cmd_list(event)
@@ -148,24 +235,39 @@ class SkillLearnerPlugin(Star):
         """查看指定 Skill 的内容"""
         message_str = event.message_str.strip()
         parts = message_str.split(maxsplit=1)
-        
+
         if len(parts) < 2:
-            yield event.plain_result("请指定 Skill 名称。用法: /skill_view <名称>")
+            yield event.plain_result(
+                "❓ 你想查看哪个 Skill 呢？\n"
+                "发送 `/skill_list` 可以看到所有已保存的 Skill 名称。\n"
+                "然后发送 `/skill_view <名称>` 查看详情~"
+            )
             return
-        
+
         result = await self.cmd.cmd_view(event, parts[1].strip())
         yield event.plain_result(result)
 
     @filter.command("skill_delete")
     async def skill_delete(self, event: AstrMessageEvent):
-        """删除指定 Skill"""
+        """删除指定 Skill（仅管理员可用）"""
+        if not self._is_admin(event):
+            yield event.plain_result(
+                "🔒 只有群管理员可以删除 Skill 哦~\n"
+                "如果你不是管理员，可以请管理员帮忙删除。"
+            )
+            return
+
         message_str = event.message_str.strip()
         parts = message_str.split(maxsplit=1)
-        
+
         if len(parts) < 2:
-            yield event.plain_result("请指定 Skill 名称。用法: /skill_delete <名称>")
+            yield event.plain_result(
+                "❓ 你想删除哪个 Skill 呢？\n"
+                "发送 `/skill_list` 查看所有 Skill，\n"
+                "然后发送 `/skill_delete <名称>` 删除~"
+            )
             return
-        
+
         result = await self.cmd.cmd_delete(event, parts[1].strip())
         yield event.plain_result(result)
 
@@ -174,18 +276,26 @@ class SkillLearnerPlugin(Star):
         """导出 Skill 为 zip（AstrBot 兼容格式）"""
         message_str = event.message_str.strip()
         parts = message_str.split(maxsplit=1)
-        
+
         if len(parts) < 2:
-            yield event.plain_result("请指定 Skill 名称。用法: /skill_export <名称>")
+            yield event.plain_result(
+                "❓ 你想导出哪个 Skill 呢？\n"
+                "发送 `/skill_list` 查看所有 Skill，\n"
+                "然后发送 `/skill_export <名称>` 导出~"
+            )
             return
-        
+
         result = await self.cmd.cmd_export(event, parts[1].strip())
         yield event.plain_result(result)
 
-    @filter.command("skill_help", alias={"技能帮助", "skill帮助"})
+    @filter.command("skill_help", alias={"技能帮助", "skill帮助", "sh"})
     async def skill_help(self, event: AstrMessageEvent):
         """显示 Skill Learner 帮助信息"""
-        result = await self.cmd.cmd_help(event)
+        user_id = event.get_sender_id()
+        group_id = self._get_group_id(event)
+        session = self.storage.get_active_session(user_id, group_id)
+        in_learning = bool(session and session.state == LearningState.LISTENING.value)
+        result = await self.cmd.cmd_help(event, in_learning=in_learning)
         yield event.plain_result(result)
 
     # ============================================================
@@ -196,47 +306,61 @@ class SkillLearnerPlugin(Star):
     async def on_message_listener(self, event: AstrMessageEvent):
         """监听消息，检测自动触发关键词，记录学习会话内容"""
         user_id = event.get_sender_id()
+        group_id = event.get_group_id() if hasattr(event, "get_group_id") else ""
         msg_text = event.message_str or ""
-        
+
         if not msg_text:
             return
-        
+
         # 忽略本插件的命令消息
         if msg_text.startswith("/skill_"):
             return
-        
+
+        # 群聊隔离：使用 group_id 维度隔离会话
+        session = self.storage.get_active_session(user_id, group_id)
+
         # 检查是否在学习模式中
-        session = self.storage.get_active_session(user_id)
         if session and session.state == LearningState.LISTENING.value:
-            # 记录消息
             session.messages.append({
                 "role": "user",
                 "content": msg_text,
             })
+            session.group_id = group_id
             self.storage.update_session(session)
-            
+
+            count = len(session.messages)
+
+            # 聚合回复：只在关键节点发送提示，避免刷屏
+            AGGREGATE_POINTS = {1, 3, 5, 10, 15}
+            if count in AGGREGATE_POINTS:
+                encouragements = {
+                    1: "📝 开始记录了！继续发送你想教我的内容~",
+                    3: "📝 已经记录了 3 条内容，看起来很有意思！",
+                    5: f"📝 {count} 条了，内容越来越丰富~",
+                    10: f"📊 已记录 {count} 条！学得非常认真呢！",
+                    15: f"📊 {count} 条！快要到上限了，准备保存吧~",
+                }
+                msg = encouragements.get(count, f"已记录 {count}/{self.cfg.max_learning_turns}")
+                msg += f"\n💡 发送 `/skill_save <名称>` 保存 | `/skill_cancel` 取消"
+                yield event.plain_result(msg)
+
             # 检查是否超过最大轮数
-            if len(session.messages) >= self.cfg.max_learning_turns:
+            if count >= self.cfg.max_learning_turns:
                 yield event.plain_result(
-                    f"学习会话已达到最大消息数（{self.cfg.max_learning_turns}）。"
-                    f"\n请发送 `/skill_save <名称>` 保存，或 `/skill_cancel` 取消。"
-                )
-            else:
-                yield event.plain_result(
-                    f"已记录（{len(session.messages)}/{self.cfg.max_learning_turns}）。"
-                    f"\n继续发送内容，或发送 `/skill_save <名称>` 保存。"
+                    f"📌 学习会话已达到最大消息数（{self.cfg.max_learning_turns}）。\n"
+                    f"请发送 `/skill_save <名称>` 保存，或 `/skill_cancel` 取消。"
                 )
             return
-        
+
         # 检查自动触发关键词
         if self.cfg.enable_auto_learn:
             if self.learner.check_auto_trigger(msg_text, self.cfg.auto_trigger_keywords):
-                session = self.storage.create_session(user_id)
+                session = self.storage.create_session(user_id, group_id)
                 yield event.plain_result(
-                    f"检测到学习意图，已进入学习模式（会话: {session.session_id}）"
-                    f"\n请发送你想要我学习的内容。"
-                    f"\n完成后发送 `/skill_save <skill名称>` 保存为 Skill。"
-                    f"\n发送 `/skill_cancel` 取消。"
+                    f"📖 检测到学习意图，已进入学习模式！（会话: {session.session_id}）\n"
+                    f"请发送你想要我学习的内容~\n"
+                    f"✅ 完成后发送 `/skill_save <名称>` 保存\n"
+                    f"❌ 发送 `/skill_cancel` 取消"
                 )
 
     # ============================================================

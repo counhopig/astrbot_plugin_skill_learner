@@ -30,6 +30,7 @@ class LearningSession:
     """一次学习会话的上下文"""
     session_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     user_id: str = ""
+    group_id: str = ""
     started_at: float = field(default_factory=time.time)
     messages: List[Dict[str, str]] = field(default_factory=list)
     summary: str = ""         # AI 生成的摘要

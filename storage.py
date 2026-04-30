@@ -37,31 +37,40 @@ class SkillStorage:
     
     # ========== 学习会话 ==========
     
-    def create_session(self, user_id: str) -> LearningSession:
+    def create_session(self, user_id: str, group_id: str = "") -> LearningSession:
         """创建新的学习会话"""
-        session = LearningSession(user_id=user_id, state="listening")
-        self._active_sessions[user_id] = session
+        session = LearningSession(user_id=user_id, group_id=group_id, state="listening")
+        key = self._session_key(user_id, group_id)
+        self._active_sessions[key] = session
         self._save_session(session)
-        logger.info(f"[SkillLearner] 创建学习会话: {session.session_id} (用户: {user_id})")
+        logger.info(f"[SkillLearner] 创建学习会话: {session.session_id} (用户: {user_id}, 群: {group_id or '私聊'})")
         return session
     
-    def get_active_session(self, user_id: str) -> Optional[LearningSession]:
+    def get_active_session(self, user_id: str, group_id: str = "") -> Optional[LearningSession]:
         """获取用户当前活跃的学习会话"""
-        return self._active_sessions.get(user_id)
+        key = self._session_key(user_id, group_id)
+        return self._active_sessions.get(key)
     
     def update_session(self, session: LearningSession):
         """更新学习会话"""
-        self._active_sessions[session.user_id] = session
+        key = self._session_key(session.user_id, session.group_id)
+        self._active_sessions[key] = session
         self._save_session(session)
     
-    def end_session(self, user_id: str):
+    def end_session(self, user_id: str, group_id: str = ""):
         """结束学习会话"""
-        if user_id in self._active_sessions:
-            session = self._active_sessions[user_id]
+        key = self._session_key(user_id, group_id)
+        if key in self._active_sessions:
+            session = self._active_sessions[key]
             session.state = "idle"
             self._save_session(session)
-            del self._active_sessions[user_id]
+            del self._active_sessions[key]
             logger.info(f"[SkillLearner] 结束学习会话: {session.session_id}")
+    
+    @staticmethod
+    def _session_key(user_id: str, group_id: str = "") -> str:
+        """生成会话唯一键，群聊按群维度隔离"""
+        return f"{group_id}:{user_id}" if group_id else user_id
     
     def _save_session(self, session: LearningSession):
         """持久化学习会话"""
