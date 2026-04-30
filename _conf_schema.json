@@ -1,0 +1,38 @@
+{
+  "auto_trigger_keywords": {
+    "description": "自动触发学习模式的关键词列表",
+    "type": "list",
+    "default": ["记住这个", "保存为skill", "学习一下", "记下来", "记住", "保存技能", "学一下", "learn this"],
+    "hint": "用户消息包含这些关键词时，自动进入学习模式。"
+  },
+  "max_learning_turns": {
+    "description": "单次学习会话最大消息数",
+    "type": "int",
+    "default": 20,
+    "hint": "达到此数量后会提醒用户保存或取消。"
+  },
+  "enable_auto_learn": {
+    "description": "启用关键词自动触发",
+    "type": "bool",
+    "default": true,
+    "hint": "关闭后只能通过 /skill_learn 命令进入学习模式。"
+  },
+  "enable_proactive_suggest": {
+    "description": "启用主动建议保存",
+    "type": "bool",
+    "default": true,
+    "hint": "实验性功能：检测到重复模式时主动建议保存为 Skill。"
+  },
+  "proactive_threshold": {
+    "description": "主动建议阈值",
+    "type": "int",
+    "default": 3,
+    "hint": "同一模式重复几次后主动建议保存。"
+  },
+  "auto_deploy_to_astrbot": {
+    "description": "自动部署到 AstrBot",
+    "type": "bool",
+    "default": true,
+    "hint": "保存 Skill 时自动复制到 AstrBot 的 skills 目录，使其立即可用。"
+  }
+}

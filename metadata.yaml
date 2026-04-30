@@ -1,0 +1,11 @@
+name: "astrbot_plugin_skill_learner_counhopig"
+author: "counhopig"
+version: "1.0.0"
+desc: "AstrBot Skill Learner —— 自动学习对话并保存为可复用 Skill"
+display_name: "Skill 自动学习器"
+repo: "https://github.com/counhopig/astrbot_plugin_skill_learner"
+dependencies:
+  - "aiofiles>=23.0.0"
+requirements:
+  - aiofiles>=23.0.0
+astrbot_version: ">=4.13.0"
