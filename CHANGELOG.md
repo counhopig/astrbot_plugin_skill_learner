@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-05-01
+
+### Added
+- 短别名指令：`/sl`、`/ss`、`/sc`、`/st`、`/sh`、`/skills`，降低移动端输入门槛
+- `/skill_status` 命令：查看当前学习进度和状态，带鼓励话术
+- 群聊隔离机制：群聊和私聊的学习会话独立，避免误触发干扰
+- 首次 Skill 保存庆祝提示：强化用户的正向反馈体验
+- 管理员权限控制：`/skill_delete` 仅限管理员使用
+
+### Changed
+- 错误提示全面优化：从 CLI 风格改为对话式引导，降低认知负担
+- 学习模式聚合回复：只在关键节点（1/3/5/10/15 条）发送提示，避免群聊刷屏
+- `/skill_save` 名称参数改为可选，AI 自动生成名称兜底
+- `cmd_list()` 列表格式优化：更轻量的排版，修复描述截断 bug
+- `cmd_view()` 智能截断：在段落边界截断预览内容
+- 保存前增加 LLM 等待提示（预计 10-30 秒），消除用户等待焦虑
+- LLM 未配置 / 调用失败时，给出更友好的错误说明
+
+### Fixed
+- `cmd_list()` 中描述截断条件表达式 bug
+- `cmd_view()` 在群聊/私聊中缺失 Skill 时的提示改进
+
 ## [1.0.0] - 2026-05-01
 
 ### Added
@@ -24,5 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - 依赖 AstrBot >= v4.13.0（需要 Skills 支持）
 - 依赖 aiofiles>=23.0.0
 
-[Unreleased]: https://github.com/counhopig/astrbot_plugin_skill_learner/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/counhopig/astrbot_plugin_skill_learner/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/counhopig/astrbot_plugin_skill_learner/releases/tag/v1.1.0
 [1.0.0]: https://github.com/counhopig/astrbot_plugin_skill_learner/releases/tag/v1.0.0

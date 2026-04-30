@@ -21,7 +21,7 @@ from .commands.handlers import CommandHandlers
     "astrbot_plugin_skill_learner_counhopig",
     "counhopig",
     "AstrBot Skill Learner —— 自动学习对话并保存为可复用 Skill",
-    "1.0.0",
+    "1.1.0",
 )
 class SkillLearnerPlugin(Star):
     def __init__(self, context: Context, config: dict | None = None):
