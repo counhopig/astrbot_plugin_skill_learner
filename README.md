@@ -1,20 +1,22 @@
-# AstrBot Skill Learner
+# AstrBot 技能学习插件
 
-AstrBot 插件 —— **自动学习对话并保存为可复用的 Skill**
+> 🤖 **本插件的全部代码、架构设计、功能规划与文档，均由 AI（GitHub Copilot · Claude Sonnet）全程管理和撰写，作者仅提供产品方向与验收。**
+
+AstrBot 插件，支持从对话中自动学习并保存为可复用的 Skill。
 
 受 [Hermes Agent](https://github.com/NousResearch/hermes-agent) 的启发，本插件让 AstrBot 能够从与用户的对话中自动学习知识、工作流和提示词模板，并将其保存为符合 [Anthropic Skills](https://docs.astrbot.app/use/skills.html) / [agentskills.io](https://agentskills.io) 标准的 Skill 文件，可直接在 AstrBot 中使用。
 
 ## 功能特性
 
-- 自动学习模式：检测关键词（如"记住这个"、"学习一下"）自动进入学习状态
-- 命令触发学习：`/skill_learn` 手动开始学习会话
-- AI 驱动的 Skill 生成：调用 LLM 自动分析对话内容并生成 `SKILL.md`
-- Skill 管理：列出、查看、删除、导出已保存的 Skills
-- AstrBot 兼容导出：一键导出为 zip，可直接上传到 AstrBot 管理面板的 Skills 页面
-- 四种 Skill 类型支持：工作流 (workflow)、知识 (knowledge)、工具 (tool)、提示词 (prompt)
-- 短别名指令：`/sl`、`/ss`、`/sc`、`/st`、`/skills`，手机端输入更快
-- 群聊隔离与防刷屏：群聊和私聊学习会话独立，关键节点才提示
-- 管理员权限控制：删除 Skill 等敏感操作仅限管理员
+- **自动学习模式**：检测关键词（如"记住这个"、"学习一下"）自动进入学习状态
+- **命令触发学习**：`/skill_learn` 手动开始学习会话
+- **AI 驱动的 Skill 生成**：调用 LLM 自动分析对话内容并生成 `SKILL.md`
+- **Skill 管理**：列出、查看、删除、导出已保存的 Skills
+- **AstrBot 兼容导出**：一键导出为 zip，可直接上传到 AstrBot 管理面板的 Skills 页面
+- **四种 Skill 类型支持**：工作流 (workflow)、知识 (knowledge)、工具 (tool)、提示词 (prompt)
+- **短别名指令**：`/sl`、`/ss`、`/sc`、`/st`、`/skills`，手机端输入更快
+- **群聊隔离与防刷屏**：群聊和私聊学习会话独立，关键节点才提示
+- **管理员权限控制**：删除 Skill 等敏感操作仅限管理员
 
 ## 安装
 
@@ -25,22 +27,17 @@ AstrBot 插件 —— **自动学习对话并保存为可复用的 Skill**
 plugin i https://github.com/counhopig/astrbot_plugin_skill_learner
 ```
 
-## 依赖
+## 配置项
 
-- `aiofiles>=23.0.0`
-- AstrBot >= v4.13.0（需要 Skills 支持）
+在 AstrBot 管理后台的插件配置页面中进行配置：
 
-## 使用说明
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `auto_trigger_keywords` | list | `["记住这个", "学习一下"]` | 自动触发学习模式的关键词列表 |
+| `max_messages_per_session` | integer | `20` | 单次学习最大消息数，防止会话过长 |
+| `enable_auto_trigger` | boolean | `true` | 是否启用关键词自动触发 |
 
-### 快速开始
-
-1. **自动触发**：发送包含"记住这个"、"学习一下"等关键词的消息
-2. **手动触发**：发送 `/skill_learn` 或 `/学习`
-3. **发送内容**：在学习模式下发送你想要 Bot 学习的内容
-4. **保存 Skill**：发送 `/skill_save <名称>` 保存
-5. **导出使用**：发送 `/skill_export <名称>` 导出为 zip，上传到 AstrBot Skills 页面
-
-### 命令列表
+## 命令
 
 | 命令 | 别名 | 说明 |
 |------|------|------|
@@ -54,13 +51,20 @@ plugin i https://github.com/counhopig/astrbot_plugin_skill_learner
 | `/skill_export <名称>` | - | 导出为 AstrBot 兼容的 zip |
 | `/skill_help` | `/技能帮助` `/sh` | 显示帮助信息 |
 
-### 配置项
+## 使用说明
 
-在 AstrBot WebUI 的插件配置页面可调整：
+### 快速开始
 
-- **自动触发关键词**：自定义触发学习模式的关键词列表
-- **单次学习最大消息数**：防止会话过长（默认 20）
-- **启用关键词自动触发**：关闭后只能通过命令进入学习模式
+1. **自动触发**：发送包含"记住这个"、"学习一下"等关键词的消息
+2. **手动触发**：发送 `/skill_learn` 或 `/学习`
+3. **发送内容**：在学习模式下发送你想要 Bot 学习的内容
+4. **保存 Skill**：发送 `/skill_save <名称>` 保存
+5. **导出使用**：发送 `/skill_export <名称>` 导出为 zip，上传到 AstrBot Skills 页面
+
+## 依赖
+
+- `aiofiles>=23.0.0`
+- AstrBot >= v4.13.0（需要 Skills 支持）
 
 ## Skill 存储位置
 
@@ -103,6 +107,6 @@ data/plugin_data/astrbot_plugin_skill_learner_counhopig/
 - [Anthropic Skills](https://docs.astrbot.app/use/skills.html) - AstrBot Skills 使用文档
 - [agentskills.io](https://agentskills.io) - Skill 开放标准规范
 
-## License
+## 开源协议
 
-MIT
+MIT License
